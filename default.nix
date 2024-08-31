@@ -31,9 +31,6 @@ in
         rustup
         pkg-config
         openssl
-        #udev alsa-lib vulkan-loader
-        #wayland
-        #libxkbcommon
         nodejs_22
         androidComposition.androidsdk
         libunwind
