@@ -1,5 +1,5 @@
 {
-  "productName": "crochetti",
+  "productName": "Crochetti",
   "version": "0.1.0",
   "identifier": "xyz.chrismiller.crochetti",
   "build": {
@@ -11,9 +11,9 @@
   "app": {
     "windows": [
       {
-        "title": "crochetti",
-        "width": 800,
-        "height": 600
+        "title": "Crochetti",
+        "width": 360,
+        "height": 800
       }
     ],
     "security": {
