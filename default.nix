@@ -31,14 +31,15 @@ in
         rustup
         pkg-config
         openssl
-        udev alsa-lib vulkan-loader
-        xorg.libX11 xorg.libXcursor xorg.libXi xorg.libXrandr
-        wayland
-        libxkbcommon
+        #udev alsa-lib vulkan-loader
+        #wayland
+        #libxkbcommon
         nodejs_22
         androidComposition.androidsdk
         libunwind
         jdk
+        gtk4
+        webkitgtk_4_1
     ];
     RUSTC_VERSION = overrides.toolchain.channel;
 
@@ -56,6 +57,9 @@ in
       export PATH=$PATH:''${CARGO_HOME:-~/.cargo}/bin
       export PATH=$PATH:''${RUSTUP_HOME:-~/.rustup}/toolchains/$RUSTC_VERSION-x86_64-unknown-linux-gnu/bin/
       export PATH="$(echo "$ANDROID_HOME/cmake/${cmakeVersion}".*/bin):$PATH"
+
+      export XDG_DATA_DIRS=${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:$XDG_DATA_DIRS
+      export WEBKIT_DISABLE_DMABUF_RENDERER=1
       '';
     # Add precompiled library to rustc search path
     RUSTFLAGS = (builtins.map (a: ''-L ${a}/lib'') [
