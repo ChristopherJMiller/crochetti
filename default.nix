@@ -21,9 +21,23 @@ in
     RUSTC_VERSION = overrides.toolchain.channel;
 
     LIBCLANG_PATH = pkgs.lib.makeLibraryPath [ pkgs.llvmPackages_latest.libclang.lib ];
+
+    PROJECT_ROOT = builtins.toString ./.;
+
     shellHook = ''
       export PATH=$PATH:''${CARGO_HOME:-~/.cargo}/bin
       export PATH=$PATH:''${RUSTUP_HOME:-~/.rustup}/toolchains/$RUSTC_VERSION-x86_64-unknown-linux-gnu/bin/
+
+      if [ ! -d "${PROJECT_ROOT}/.android" ]; then
+        yes | sdkmanager --sdk_root=${PROJECT_ROOT}/.android --install "platforms;android-35"
+        yes | sdkmanager --sdk_root=${PROJECT_ROOT}/.android --install "platform-tools"
+        yes | sdkmanager --sdk_root=${PROJECT_ROOT}/.android --install "emulator"
+        yes | sdkmanager --sdk_root=${PROJECT_ROOT}/.android --install "build-tools;35.0.0"
+        yes | sdkmanager --sdk_root=${PROJECT_ROOT}/.android --install "ndk;27.0.12077973"
+      fi
+
+      export ANDROID_HOME=${PROJECT_ROOT}/.android
+      export NDK_HOME=${PROJECT_ROOT}/.android/ndk/$(ls -1 ${PROJECT_ROOT}/.android/ndk)
       '';
     # Add precompiled library to rustc search path
     RUSTFLAGS = (builtins.map (a: ''-L ${a}/lib'') [
