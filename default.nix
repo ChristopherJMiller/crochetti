@@ -38,6 +38,7 @@ in
         gtk4
         webkitgtk_4_1
         typescript
+        sqlite
     ];
     RUSTC_VERSION = overrides.toolchain.channel;
 
