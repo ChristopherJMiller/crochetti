@@ -37,6 +37,7 @@ in
         jdk
         gtk4
         webkitgtk_4_1
+        typescript
     ];
     RUSTC_VERSION = overrides.toolchain.channel;
 
