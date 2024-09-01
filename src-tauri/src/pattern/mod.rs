@@ -5,9 +5,9 @@ use row::PatternRow;
 use serde::{Deserialize, Serialize};
 use stitch::CustomStitch;
 
-mod material;
-mod row;
-mod stitch;
+pub mod material;
+pub mod row;
+pub mod stitch;
 
 #[derive(Serialize, Deserialize)]
 pub struct PatternComponent {

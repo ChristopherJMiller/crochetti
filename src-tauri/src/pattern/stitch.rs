@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
+use strum::EnumIter;
 
 #[derive(Serialize, Deserialize)]
 pub struct StitchGroup {
@@ -90,7 +91,7 @@ impl Display for StitchGroup {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, EnumIter)]
 pub enum Stitch {
     SingleCrochet,
     IncreasingCrochet,

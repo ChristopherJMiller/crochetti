@@ -1,7 +1,10 @@
 import { FaPlus } from "react-icons/fa";
 import { FabButton } from "./FabButton";
+import { useNavigate } from "react-router-dom";
 
-function App() {
+export function App() {
+  const navigate = useNavigate();
+
   return (
     <div className="static">
       <div className="flex flex-col gap-1 justify-between w-screen h-screen pt-5">
@@ -11,10 +14,9 @@ function App() {
         <FabButton
           icon={<FaPlus className="w-4 h-4 mr-2 self-center" />}
           text="Add Pattern"
+          onClick={() => navigate("/add")}
         />
       </div>
     </div>
   );
 }
-
-export default App;
