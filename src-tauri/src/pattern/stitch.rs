@@ -9,6 +9,14 @@ pub struct StitchGroup {
 }
 
 impl StitchGroup {
+    pub fn stitch_count(&self) -> usize {
+        self.group
+            .iter()
+            .map(|stitch| stitch.stitch_count())
+            .fold(0, |acc, x| acc + x)
+            * self.n
+    }
+
     fn build_pattern_tail(acc: String, current_stitch: &Stitch, repeats: usize) -> String {
         let repeat_label = if repeats > 1 {
             format!(" {repeats}")
@@ -28,6 +36,7 @@ impl StitchGroup {
 
 impl Display for StitchGroup {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut needs_grouping = false;
         let (acc, (current_stitch, repeats)) = self
             .group
             .iter()
@@ -43,6 +52,9 @@ impl Display for StitchGroup {
                         (acc, (Some(stitch), 1))
                     // Not in queue, need to empty queue
                     } else if let Some(current_stitch) = current_stitch {
+                        if !acc.is_empty() {
+                            needs_grouping = true;
+                        }
                         (Self::build_pattern_tail(acc, current_stitch, repeats), (Some(stitch), 1))
                     } else {
                         panic!("Error occured during StitchGroup: ({acc}, ({current_stitch:?}, {repeats}))");
@@ -51,6 +63,9 @@ impl Display for StitchGroup {
             );
 
         let inner_pattern = if let Some(current_stitch) = current_stitch {
+            if !acc.is_empty() {
+                needs_grouping = true;
+            }
             Self::build_pattern_tail(acc, current_stitch, repeats)
         } else {
             acc
@@ -59,7 +74,7 @@ impl Display for StitchGroup {
         let (first, rest) = inner_pattern.split_at(1);
         let inner_pattern = format!("{}{rest}", first.to_uppercase());
 
-        let (left, right) = if self.group.len() > 1 {
+        let (left, right) = if needs_grouping {
             ("(".to_string(), ")".to_string())
         } else {
             (String::new(), String::new())
@@ -82,7 +97,21 @@ pub enum Stitch {
     DecreasingCrochet,
     Slip,
     Chain,
-    Custom(String),
+    Custom(String, usize),
+}
+
+impl Stitch {
+    /// Returns the number of stitches
+    pub fn stitch_count(&self) -> usize {
+        match self {
+            Stitch::SingleCrochet => 1,
+            Stitch::IncreasingCrochet => 2,
+            Stitch::DecreasingCrochet => 1,
+            Stitch::Slip => 1,
+            Stitch::Chain => 1,
+            Stitch::Custom(_, stitch_count) => *stitch_count,
+        }
+    }
 }
 
 impl Display for Stitch {
@@ -93,7 +122,7 @@ impl Display for Stitch {
             Stitch::DecreasingCrochet => "sc dec",
             Stitch::Slip => "sl st",
             Stitch::Chain => "ch",
-            Stitch::Custom(custom) => custom,
+            Stitch::Custom(custom, _) => custom,
         };
 
         write!(f, "{abbrev}")
@@ -166,6 +195,42 @@ mod tests {
             }
             .to_string(),
             "(Sc 3, sc inc 2)"
+        );
+    }
+
+    #[test]
+    fn stitch_count() {
+        assert_eq!(
+            StitchGroup {
+                group: vec![
+                    Stitch::SingleCrochet,
+                    Stitch::SingleCrochet,
+                    Stitch::SingleCrochet,
+                    Stitch::IncreasingCrochet,
+                    Stitch::IncreasingCrochet
+                ],
+                n: 1
+            }
+            .stitch_count(),
+            7
+        );
+    }
+
+    #[test]
+    fn stitch_count_2() {
+        assert_eq!(
+            StitchGroup {
+                group: vec![
+                    Stitch::SingleCrochet,
+                    Stitch::SingleCrochet,
+                    Stitch::SingleCrochet,
+                    Stitch::IncreasingCrochet,
+                    Stitch::IncreasingCrochet
+                ],
+                n: 2
+            }
+            .stitch_count(),
+            14
         );
     }
 }

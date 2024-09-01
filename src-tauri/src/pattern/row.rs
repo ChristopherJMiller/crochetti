@@ -30,6 +30,15 @@ pub struct PatternRow {
     pub sided: Option<Sided>,
 }
 
+impl PatternRow {
+    pub fn stitch_count(&self) -> usize {
+        self.instructions
+            .iter()
+            .map(|grp| grp.stitch_count())
+            .fold(0, |acc, x| acc + x)
+    }
+}
+
 impl Display for PatternRow {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut parts = vec![];
@@ -46,6 +55,86 @@ impl Display for PatternRow {
                 .collect::<Vec<_>>(),
         );
 
-        write!(f, "{}", parts.join(" "))
+        parts.push(format!("({} sts)", self.stitch_count()));
+
+        if !self.description.is_empty() {
+            parts.push(self.description.clone());
+        }
+
+        write!(f, "{}", parts.join(". "))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::pattern::{
+        row::{PatternRow, Sided},
+        stitch::{Stitch, StitchGroup},
+    };
+
+    #[test]
+    fn not_sided() {
+        assert_eq!(
+            PatternRow {
+                description: "Test Instruction".to_string(),
+                instructions: vec![StitchGroup {
+                    group: vec![
+                        Stitch::SingleCrochet,
+                        Stitch::SingleCrochet,
+                        Stitch::IncreasingCrochet
+                    ],
+                    n: 2
+                }],
+                sided: None,
+            }
+            .to_string(),
+            "(Sc 2, sc inc) x2. (8 sts). Test Instruction"
+        );
+    }
+
+    #[test]
+    fn sided() {
+        assert_eq!(
+            PatternRow {
+                description: "Test Instruction".to_string(),
+                instructions: vec![StitchGroup {
+                    group: vec![
+                        Stitch::SingleCrochet,
+                        Stitch::SingleCrochet,
+                        Stitch::IncreasingCrochet
+                    ],
+                    n: 2
+                }],
+                sided: Some(Sided::RightSided),
+            }
+            .to_string(),
+            "On RS. (Sc 2, sc inc) x2. (8 sts). Test Instruction"
+        );
+    }
+
+    #[test]
+    fn multiple_groups() {
+        assert_eq!(
+            PatternRow {
+                description: "Test Instruction".to_string(),
+                instructions: vec![
+                    StitchGroup {
+                        group: vec![
+                            Stitch::SingleCrochet,
+                            Stitch::SingleCrochet,
+                            Stitch::IncreasingCrochet
+                        ],
+                        n: 2
+                    },
+                    StitchGroup {
+                        group: vec![Stitch::SingleCrochet, Stitch::SingleCrochet],
+                        n: 1
+                    }
+                ],
+                sided: None,
+            }
+            .to_string(),
+            "(Sc 2, sc inc) x2. Sc 2. (10 sts). Test Instruction"
+        );
     }
 }
