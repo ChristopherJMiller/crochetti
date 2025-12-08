@@ -51,3 +51,33 @@ data class PatternWithProgress(
     )
     val progress: ProgressEntity?
 )
+
+/**
+ * Pattern with custom stitches.
+ */
+data class PatternWithCustomStitches(
+    @Embedded val pattern: PatternEntity,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "patternId"
+    )
+    val customStitches: List<CustomStitchEntity>
+)
+
+/**
+ * Full pattern with components, rows, and custom stitches.
+ */
+data class PatternWithEverything(
+    @Embedded val pattern: PatternEntity,
+    @Relation(
+        entity = ComponentEntity::class,
+        parentColumn = "id",
+        entityColumn = "patternId"
+    )
+    val componentsWithRows: List<ComponentWithRows>,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "patternId"
+    )
+    val customStitches: List<CustomStitchEntity>
+)

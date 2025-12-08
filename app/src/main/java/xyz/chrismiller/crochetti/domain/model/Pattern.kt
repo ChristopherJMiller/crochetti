@@ -9,6 +9,7 @@ data class Pattern(
     val description: String = "",
     val photoUri: String? = null,
     val components: List<PatternComponent> = emptyList(),
+    val customStitches: List<CustomStitchDefinition> = emptyList(),
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 ) {
@@ -23,6 +24,15 @@ data class Pattern(
     fun getAllRowsFlat(): List<Pair<PatternComponent, PatternRow>> {
         return components.flatMap { component ->
             component.rows.map { row -> component to row }
+        }
+    }
+
+    /**
+     * Get custom stitches as a map for parser use.
+     */
+    fun getCustomStitchMap(): Map<String, Stitch.Custom> {
+        return customStitches.associate {
+            it.normalizedAbbreviation to it.toStitch()
         }
     }
 }

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import xyz.chrismiller.crochetti.data.repository.PatternRepository
 import xyz.chrismiller.crochetti.data.repository.ProgressRepository
+import xyz.chrismiller.crochetti.domain.model.ExpandedRow
 import xyz.chrismiller.crochetti.domain.model.Pattern
 import xyz.chrismiller.crochetti.domain.model.PatternComponent
 import xyz.chrismiller.crochetti.domain.model.PatternRow
@@ -21,15 +22,21 @@ data class PatternProgressUiState(
     val pattern: Pattern? = null,
     val progress: Progress? = null,
     val currentComponent: PatternComponent? = null,
-    val currentRow: PatternRow? = null,
-    val currentRowNumber: Int = 1,
-    val totalRowsInComponent: Int = 0,
+    val expandedRows: List<ExpandedRow> = emptyList(),
+    val currentExpandedRow: ExpandedRow? = null,
+    val currentVirtualRowIndex: Int = 0,
+    val totalVirtualRowsInComponent: Int = 0,
     val isLoading: Boolean = true,
     val error: String? = null
 ) {
     val currentStitchCount: Int get() = progress?.currentStitchCount ?: 0
-    val totalStitchesInRow: Int get() = currentRow?.totalStitchCount ?: 0
+    val totalStitchesInRow: Int get() = currentExpandedRow?.sourceRow?.totalStitchCount ?: 0
     val isRowComplete: Boolean get() = currentStitchCount >= totalStitchesInRow && totalStitchesInRow > 0
+
+    // For backward compatibility
+    val currentRow: PatternRow? get() = currentExpandedRow?.sourceRow
+    val currentRowNumber: Int get() = currentVirtualRowIndex + 1
+    val totalRowsInComponent: Int get() = totalVirtualRowsInComponent
 }
 
 @HiltViewModel
@@ -73,21 +80,25 @@ class PatternProgressViewModel @Inject constructor(
                         it.id == currentProgress.currentComponentId
                     } ?: pattern.components.firstOrNull()
 
-                    // Find current row
-                    val rowIndex = currentProgress.currentRowIndex.coerceIn(
+                    // Expand rows into virtual rows (accounting for repeats)
+                    val expandedRows = currentComponent?.expandRows() ?: emptyList()
+
+                    // Find current virtual row
+                    val virtualRowIndex = currentProgress.currentRowIndex.coerceIn(
                         0,
-                        (currentComponent?.rows?.size ?: 1) - 1
+                        (expandedRows.size - 1).coerceAtLeast(0)
                     )
-                    val currentRow = currentComponent?.rows?.getOrNull(rowIndex)
+                    val currentExpandedRow = expandedRows.getOrNull(virtualRowIndex)
 
                     _uiState.update {
                         it.copy(
                             pattern = pattern,
                             progress = currentProgress,
                             currentComponent = currentComponent,
-                            currentRow = currentRow,
-                            currentRowNumber = rowIndex + 1,
-                            totalRowsInComponent = currentComponent?.rows?.size ?: 0,
+                            expandedRows = expandedRows,
+                            currentExpandedRow = currentExpandedRow,
+                            currentVirtualRowIndex = virtualRowIndex,
+                            totalVirtualRowsInComponent = expandedRows.size,
                             isLoading = false
                         )
                     }
@@ -142,36 +153,34 @@ class PatternProgressViewModel @Inject constructor(
     fun completeRow() {
         val state = _uiState.value
         val patternId = state.pattern?.id ?: return
-        val currentRow = state.currentRow ?: return
-        val currentComponent = state.currentComponent ?: return
+        val currentExpandedRow = state.currentExpandedRow ?: return
 
-        val nextRowIndex = state.progress?.currentRowIndex?.plus(1) ?: 0
-        val isLastRow = nextRowIndex >= currentComponent.rows.size
+        val nextVirtualRowIndex = state.currentVirtualRowIndex + 1
+        val isLastVirtualRow = nextVirtualRowIndex >= state.expandedRows.size
 
         viewModelScope.launch {
-            if (isLastRow) {
-                // Stay on last row but mark complete
+            if (isLastVirtualRow) {
+                // Stay on last virtual row but mark complete
                 progressRepository.completeRowAndAdvance(
                     patternId,
-                    currentRow.id,
-                    currentComponent.rows.size - 1
+                    currentExpandedRow.sourceRow.id,
+                    state.expandedRows.size - 1
                 )
             } else {
                 progressRepository.completeRowAndAdvance(
                     patternId,
-                    currentRow.id,
-                    nextRowIndex
+                    currentExpandedRow.sourceRow.id,
+                    nextVirtualRowIndex
                 )
             }
         }
     }
 
-    fun goToRow(rowIndex: Int) {
+    fun goToRow(virtualRowIndex: Int) {
         val state = _uiState.value
         val patternId = state.pattern?.id ?: return
-        val currentComponent = state.currentComponent ?: return
 
-        val safeIndex = rowIndex.coerceIn(0, currentComponent.rows.size - 1)
+        val safeIndex = virtualRowIndex.coerceIn(0, (state.expandedRows.size - 1).coerceAtLeast(0))
 
         viewModelScope.launch {
             progressRepository.advanceToRow(patternId, safeIndex)
@@ -179,7 +188,7 @@ class PatternProgressViewModel @Inject constructor(
     }
 
     fun previousRow() {
-        val currentIndex = _uiState.value.progress?.currentRowIndex ?: 0
+        val currentIndex = _uiState.value.currentVirtualRowIndex
         if (currentIndex > 0) {
             goToRow(currentIndex - 1)
         }
@@ -187,8 +196,8 @@ class PatternProgressViewModel @Inject constructor(
 
     fun nextRow() {
         val state = _uiState.value
-        val currentIndex = state.progress?.currentRowIndex ?: 0
-        val maxIndex = (state.currentComponent?.rows?.size ?: 1) - 1
+        val currentIndex = state.currentVirtualRowIndex
+        val maxIndex = (state.expandedRows.size - 1).coerceAtLeast(0)
         if (currentIndex < maxIndex) {
             goToRow(currentIndex + 1)
         }

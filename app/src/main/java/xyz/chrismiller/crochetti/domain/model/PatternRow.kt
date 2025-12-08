@@ -11,8 +11,14 @@ data class PatternRow(
     val description: String = "",
     val instructions: List<StitchGroup>,
     val sided: Sided? = null,
-    val hasMagicRing: Boolean = false
+    val hasMagicRing: Boolean = false,
+    val repeatCount: Int = 1 // 1 = single row, >1 = repeat rows (e.g., "7-9)")
 ) {
+    /**
+     * Whether this row represents multiple identical rows.
+     */
+    val isRepeating: Boolean get() = repeatCount > 1
+
     /**
      * Total number of stitches this row produces.
      */

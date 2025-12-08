@@ -5,19 +5,23 @@ import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import xyz.chrismiller.crochetti.data.local.dao.ComponentDao
+import xyz.chrismiller.crochetti.data.local.dao.CustomStitchDao
 import xyz.chrismiller.crochetti.data.local.dao.PatternDao
 import xyz.chrismiller.crochetti.data.local.dao.ProgressDao
 import xyz.chrismiller.crochetti.data.local.dao.RowDao
 import xyz.chrismiller.crochetti.data.local.entity.ComponentEntity
+import xyz.chrismiller.crochetti.data.local.entity.CustomStitchEntity
 import xyz.chrismiller.crochetti.data.local.entity.PatternEntity
 import xyz.chrismiller.crochetti.data.local.entity.ProgressEntity
 import xyz.chrismiller.crochetti.data.local.entity.RowEntity
+import xyz.chrismiller.crochetti.domain.model.CustomStitchDefinition
 import xyz.chrismiller.crochetti.domain.model.Pattern
 import xyz.chrismiller.crochetti.domain.model.PatternComponent
 import xyz.chrismiller.crochetti.domain.model.PatternRow
 import xyz.chrismiller.crochetti.domain.model.Progress
 import xyz.chrismiller.crochetti.domain.model.Sided
 import xyz.chrismiller.crochetti.domain.model.StitchGroup
+import xyz.chrismiller.crochetti.domain.model.StitchInstruction
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,7 +30,8 @@ class PatternRepository @Inject constructor(
     private val patternDao: PatternDao,
     private val componentDao: ComponentDao,
     private val rowDao: RowDao,
-    private val progressDao: ProgressDao
+    private val progressDao: ProgressDao,
+    private val customStitchDao: CustomStitchDao
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -44,7 +49,7 @@ class PatternRepository @Inject constructor(
     }
 
     /**
-     * Get a complete pattern with all components and rows.
+     * Get a complete pattern with all components, rows, and custom stitches.
      */
     suspend fun getPatternWithDetails(patternId: Long): Pattern? {
         val patternWithData = patternDao.getPatternWithComponentsAndRows(patternId) ?: return null
@@ -62,12 +67,17 @@ class PatternRepository @Inject constructor(
                 )
             }
 
+        // Load custom stitches
+        val customStitches = customStitchDao.getCustomStitchesForPatternSync(patternId)
+            .map { it.toDomain() }
+
         return Pattern(
             id = patternWithData.pattern.id,
             name = patternWithData.pattern.name,
             description = patternWithData.pattern.description,
             photoUri = patternWithData.pattern.photoUri,
             components = components,
+            customStitches = customStitches,
             createdAt = patternWithData.pattern.createdAt,
             updatedAt = patternWithData.pattern.updatedAt
         )
@@ -92,12 +102,17 @@ class PatternRepository @Inject constructor(
                         )
                     }
 
+                // Load custom stitches
+                val customStitches = customStitchDao.getCustomStitchesForPatternSync(patternId)
+                    .map { entity -> entity.toDomain() }
+
                 Pattern(
                     id = it.pattern.id,
                     name = it.pattern.name,
                     description = it.pattern.description,
                     photoUri = it.pattern.photoUri,
                     components = components,
+                    customStitches = customStitches,
                     createdAt = it.pattern.createdAt,
                     updatedAt = it.pattern.updatedAt
                 )
@@ -106,7 +121,7 @@ class PatternRepository @Inject constructor(
     }
 
     /**
-     * Save a complete pattern with components and rows.
+     * Save a complete pattern with components, rows, and custom stitches.
      */
     suspend fun savePattern(pattern: Pattern): Long {
         val patternId = patternDao.insertPattern(
@@ -123,6 +138,23 @@ class PatternRepository @Inject constructor(
         // Delete existing components if updating
         if (pattern.id != 0L) {
             componentDao.deleteComponentsForPattern(patternId)
+            customStitchDao.deleteAllForPattern(patternId)
+        }
+
+        // Insert custom stitches
+        pattern.customStitches.forEachIndexed { index, customStitch ->
+            customStitchDao.insert(
+                CustomStitchEntity(
+                    patternId = patternId,
+                    abbreviation = customStitch.normalizedAbbreviation,
+                    displayName = customStitch.displayName,
+                    description = customStitch.description,
+                    instructionsJson = json.encodeToString(customStitch.instructions),
+                    stitchCount = customStitch.stitchCount,
+                    rawDsl = customStitch.rawDsl,
+                    sortOrder = index
+                )
+            )
         }
 
         // Insert components and rows
@@ -143,7 +175,8 @@ class PatternRepository @Inject constructor(
                     hasMagicRing = row.hasMagicRing,
                     instructionsJson = json.encodeToString(row.instructions),
                     stitchCount = row.totalStitchCount,
-                    sortOrder = rowIndex
+                    sortOrder = rowIndex,
+                    repeatCount = row.repeatCount
                 )
             }
             rowDao.insertRows(rowEntities)
@@ -198,7 +231,8 @@ class PatternRepository @Inject constructor(
             description = description,
             instructions = instructions,
             sided = Sided.fromString(sided),
-            hasMagicRing = hasMagicRing
+            hasMagicRing = hasMagicRing,
+            repeatCount = repeatCount
         )
     }
 
@@ -216,6 +250,23 @@ class PatternRepository @Inject constructor(
             currentStitchCount = currentStitchCount,
             completedRowIds = completedIds,
             lastUpdated = lastUpdated
+        )
+    }
+
+    private fun CustomStitchEntity.toDomain(): CustomStitchDefinition {
+        val instructions: List<StitchInstruction> = try {
+            json.decodeFromString(instructionsJson)
+        } catch (e: Exception) {
+            emptyList()
+        }
+
+        return CustomStitchDefinition(
+            abbreviation = abbreviation,
+            displayName = displayName,
+            description = description,
+            instructions = instructions,
+            stitchCount = stitchCount,
+            rawDsl = rawDsl
         )
     }
 }

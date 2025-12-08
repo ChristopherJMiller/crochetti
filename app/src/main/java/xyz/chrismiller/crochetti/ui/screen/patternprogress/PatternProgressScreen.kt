@@ -123,7 +123,10 @@ fun PatternProgressScreen(
         StitchHelpBottomSheet(
             onDismiss = { showStitchHelp = false },
             sheetState = sheetState,
-            currentRowStitches = currentRowStitches
+            currentRowStitches = currentRowStitches,
+            customStitches = uiState.pattern?.customStitches ?: emptyList(),
+            hasMagicRing = uiState.currentRow?.hasMagicRing ?: false,
+            sided = uiState.currentRow?.sided
         )
     }
 
@@ -161,7 +164,9 @@ fun PatternProgressScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
         },
@@ -240,25 +245,56 @@ private fun ProgressContent(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Row ${uiState.currentRowNumber} of ${uiState.totalRowsInComponent}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    uiState.currentRow?.sided?.let { sided ->
+                    Column {
+                        // Row display: "Row 7" or "Row 7-9" for repeats
+                        val expandedRow = uiState.currentExpandedRow
+                        val rowLabel = if (expandedRow?.isPartOfRepeat == true) {
+                            "Row ${expandedRow.repeatRangeLabel}"
+                        } else {
+                            "Row ${uiState.currentRowNumber}"
+                        }
                         Text(
-                            text = sided.abbreviation,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary
+                            text = "$rowLabel of ${uiState.totalRowsInComponent}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
+                        // Show repeat context: "(2 of 3)" for repeating rows
+                        if (expandedRow?.isPartOfRepeat == true) {
+                            Text(
+                                text = "Repetition ${expandedRow.repetitionIndex + 1} of ${expandedRow.sourceRow.repeatCount}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    // Row indicators (RS/WS and Magic Ring)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        uiState.currentRow?.sided?.let { sided ->
+                            Text(
+                                text = sided.abbreviation,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        if (uiState.currentRow?.hasMagicRing == true) {
+                            Text(
+                                text = "MR",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Row instructions
+                // Row instructions (prepend MR if applicable)
+                val instructionPrefix = if (uiState.currentRow?.hasMagicRing == true) "MR, " else ""
                 Text(
-                    text = uiState.currentRow?.instructionsOnlyString() ?: "No instructions",
+                    text = instructionPrefix + (uiState.currentRow?.instructionsOnlyString() ?: "No instructions"),
                     style = MaterialTheme.typography.bodyLarge
                 )
 

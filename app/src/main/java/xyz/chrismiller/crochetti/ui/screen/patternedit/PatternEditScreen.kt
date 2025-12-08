@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -54,8 +57,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import xyz.chrismiller.crochetti.domain.model.CustomStitchDefinition
 import xyz.chrismiller.crochetti.domain.model.Sided
 import xyz.chrismiller.crochetti.domain.parser.PatternDslParser
 
@@ -92,6 +97,22 @@ fun PatternEditScreen(
         }
     }
 
+    // Custom stitch editor sheet
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val editingCustomStitch = uiState.editingCustomStitch
+    if (uiState.showCustomStitchEditor && editingCustomStitch != null) {
+        CustomStitchEditorSheet(
+            editState = editingCustomStitch,
+            onAbbreviationChange = viewModel::updateCustomStitchAbbreviation,
+            onDisplayNameChange = viewModel::updateCustomStitchDisplayName,
+            onDescriptionChange = viewModel::updateCustomStitchDescription,
+            onDslChange = viewModel::updateCustomStitchDsl,
+            onSave = viewModel::saveCustomStitch,
+            onDismiss = viewModel::cancelCustomStitchEdit,
+            sheetState = sheetState
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -108,7 +129,9 @@ fun PatternEditScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
         },
@@ -177,9 +200,14 @@ fun PatternEditScreen(
                 onRowDescriptionChange = viewModel::updateRowDescription,
                 onRowSidedChange = viewModel::updateRowSided,
                 onRowMagicRingChange = viewModel::updateRowMagicRing,
+                onRowRepeatCountChange = viewModel::updateRowRepeatCount,
                 onAddRow = viewModel::addRow,
                 onRemoveRow = viewModel::removeRow,
                 onScrollStateChange = viewModel::updateShowAddRowFab,
+                onToggleCustomStitchSection = viewModel::toggleCustomStitchSection,
+                onAddCustomStitch = viewModel::startAddCustomStitch,
+                onEditCustomStitch = viewModel::startEditCustomStitch,
+                onDeleteCustomStitch = viewModel::deleteCustomStitch,
                 modifier = Modifier.padding(paddingValues)
             )
         }
@@ -202,9 +230,14 @@ private fun PatternEditContent(
     onRowDescriptionChange: (Int, Int, String) -> Unit,
     onRowSidedChange: (Int, Int, Sided?) -> Unit,
     onRowMagicRingChange: (Int, Int, Boolean) -> Unit,
+    onRowRepeatCountChange: (Int, Int, Int) -> Unit,
     onAddRow: (Int) -> Unit,
     onRemoveRow: (Int, Int) -> Unit,
     onScrollStateChange: (Boolean) -> Unit,
+    onToggleCustomStitchSection: () -> Unit,
+    onAddCustomStitch: () -> Unit,
+    onEditCustomStitch: (CustomStitchDefinition) -> Unit,
+    onDeleteCustomStitch: (CustomStitchDefinition) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -255,6 +288,19 @@ private fun PatternEditContent(
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2,
                 maxLines = 4
+            )
+        }
+
+        // Custom Stitches Section
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+            CustomStitchesSection(
+                customStitches = uiState.customStitches,
+                isExpanded = uiState.showCustomStitchSection,
+                onToggleExpanded = onToggleCustomStitchSection,
+                onAddCustomStitch = onAddCustomStitch,
+                onEditCustomStitch = onEditCustomStitch,
+                onDeleteCustomStitch = onDeleteCustomStitch
             )
         }
 
@@ -350,8 +396,12 @@ private fun PatternEditContent(
             }
 
             itemsIndexed(selectedComponent.rows) { rowIndex, row ->
+                // Calculate display row start by summing repeat counts of previous rows
+                val displayRowStart = selectedComponent.rows
+                    .take(rowIndex)
+                    .sumOf { it.repeatCount } + 1
                 RowEditCard(
-                    rowNumber = rowIndex + 1,
+                    displayRowStart = displayRowStart,
                     rowState = row,
                     canDelete = selectedComponent.rows.size > 1,
                     isFirstRow = rowIndex == 0,
@@ -359,6 +409,7 @@ private fun PatternEditContent(
                     onDescriptionChange = { onRowDescriptionChange(uiState.selectedComponentIndex, rowIndex, it) },
                     onSidedChange = { onRowSidedChange(uiState.selectedComponentIndex, rowIndex, it) },
                     onMagicRingChange = { onRowMagicRingChange(uiState.selectedComponentIndex, rowIndex, it) },
+                    onRepeatCountChange = { onRowRepeatCountChange(uiState.selectedComponentIndex, rowIndex, it) },
                     onDelete = { onRemoveRow(uiState.selectedComponentIndex, rowIndex) }
                 )
             }
@@ -373,7 +424,7 @@ private fun PatternEditContent(
 
 @Composable
 private fun RowEditCard(
-    rowNumber: Int,
+    displayRowStart: Int,
     rowState: RowEditState,
     canDelete: Boolean,
     isFirstRow: Boolean,
@@ -381,8 +432,17 @@ private fun RowEditCard(
     onDescriptionChange: (String) -> Unit,
     onSidedChange: (Sided?) -> Unit,
     onMagicRingChange: (Boolean) -> Unit,
+    onRepeatCountChange: (Int) -> Unit,
     onDelete: () -> Unit
 ) {
+    // Calculate display label: "Row 7" or "Rows 7-9"
+    val displayRowEnd = displayRowStart + rowState.repeatCount - 1
+    val rowLabel = if (rowState.repeatCount > 1) {
+        "Rows $displayRowStart-$displayRowEnd"
+    } else {
+        "Row $displayRowStart"
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -398,20 +458,33 @@ private fun RowEditCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Row $rowNumber",
+                    text = rowLabel,
                     style = MaterialTheme.typography.titleSmall
                 )
-                if (canDelete) {
-                    IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete row",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(18.dp)
-                        )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Repeat count stepper
+                    RepeatCountStepper(
+                        repeatCount = rowState.repeatCount,
+                        onRepeatCountChange = onRepeatCountChange
+                    )
+
+                    // Delete button
+                    if (canDelete) {
+                        IconButton(
+                            onClick = onDelete,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete row",
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -487,6 +560,69 @@ private fun RowEditCard(
                 label = { Text("Notes (optional)") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
+            )
+        }
+    }
+}
+
+/**
+ * Compact +/- stepper for setting repeat count.
+ */
+@Composable
+private fun RepeatCountStepper(
+    repeatCount: Int,
+    onRepeatCountChange: (Int) -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        // Minus button
+        IconButton(
+            onClick = { onRepeatCountChange(repeatCount - 1) },
+            enabled = repeatCount > 1,
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Remove,
+                contentDescription = "Decrease repeat count",
+                modifier = Modifier.size(16.dp),
+                tint = if (repeatCount > 1) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                }
+            )
+        }
+
+        // Count display
+        Text(
+            text = "${repeatCount}x",
+            style = MaterialTheme.typography.labelMedium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.widthIn(min = 28.dp),
+            color = if (repeatCount > 1) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
+        )
+
+        // Plus button
+        IconButton(
+            onClick = { onRepeatCountChange(repeatCount + 1) },
+            enabled = repeatCount < 99,
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Increase repeat count",
+                modifier = Modifier.size(16.dp),
+                tint = if (repeatCount < 99) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                }
             )
         }
     }
