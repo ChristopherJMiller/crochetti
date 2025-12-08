@@ -13,7 +13,7 @@ import xyz.chrismiller.crochetti.data.local.CrochettiDatabase
 import xyz.chrismiller.crochetti.data.local.dao.ComponentDao
 import xyz.chrismiller.crochetti.data.local.dao.CustomStitchDao
 import xyz.chrismiller.crochetti.data.local.dao.PatternDao
-import xyz.chrismiller.crochetti.data.local.dao.ProgressDao
+import xyz.chrismiller.crochetti.data.local.dao.ProjectDao
 import xyz.chrismiller.crochetti.data.local.dao.RowDao
 import javax.inject.Singleton
 
@@ -55,6 +55,51 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Create projects table
+            db.execSQL("""
+                CREATE TABLE IF NOT EXISTS projects (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    patternId INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'active',
+                    currentComponentId INTEGER,
+                    currentRowIndex INTEGER NOT NULL DEFAULT 0,
+                    currentStitchCount INTEGER NOT NULL DEFAULT 0,
+                    completedRowIdsJson TEXT NOT NULL DEFAULT '[]',
+                    createdAt INTEGER NOT NULL,
+                    lastUpdated INTEGER NOT NULL,
+                    completedAt INTEGER,
+                    FOREIGN KEY(patternId) REFERENCES patterns(id) ON DELETE CASCADE
+                )
+            """.trimIndent())
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_projects_patternId ON projects(patternId)")
+
+            // Migrate existing progress data to projects
+            db.execSQL("""
+                INSERT INTO projects (patternId, name, status, currentComponentId, currentRowIndex,
+                                      currentStitchCount, completedRowIdsJson, createdAt, lastUpdated, completedAt)
+                SELECT
+                    p.patternId,
+                    patterns.name,
+                    'active',
+                    p.currentComponentId,
+                    p.currentRowIndex,
+                    p.currentStitchCount,
+                    p.completedRowIdsJson,
+                    p.lastUpdated,
+                    p.lastUpdated,
+                    NULL
+                FROM progress p
+                INNER JOIN patterns ON patterns.id = p.patternId
+            """.trimIndent())
+
+            // Drop old progress table
+            db.execSQL("DROP TABLE IF EXISTS progress")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -65,7 +110,7 @@ object DatabaseModule {
             CrochettiDatabase::class.java,
             CrochettiDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .build()
     }
 
@@ -85,8 +130,8 @@ object DatabaseModule {
     }
 
     @Provides
-    fun provideProgressDao(database: CrochettiDatabase): ProgressDao {
-        return database.progressDao()
+    fun provideProjectDao(database: CrochettiDatabase): ProjectDao {
+        return database.projectDao()
     }
 
     @Provides

@@ -8,11 +8,16 @@ sealed class Screen(val route: String) {
         fun createRoute(patternId: Long) = "patterns/$patternId/edit"
     }
 
-    data object PatternProgress : Screen("patterns/{patternId}/progress") {
-        fun createRoute(patternId: Long) = "patterns/$patternId/progress"
+    data object ProjectList : Screen("patterns/{patternId}/projects") {
+        fun createRoute(patternId: Long) = "patterns/$patternId/projects"
+    }
+
+    data object ProjectProgress : Screen("projects/{projectId}/progress") {
+        fun createRoute(projectId: Long) = "projects/$projectId/progress"
     }
 
     companion object {
         const val PATTERN_ID_ARG = "patternId"
+        const val PROJECT_ID_ARG = "projectId"
     }
 }

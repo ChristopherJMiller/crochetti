@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.Flow
 import xyz.chrismiller.crochetti.data.local.entity.PatternEntity
 import xyz.chrismiller.crochetti.data.local.entity.PatternWithComponents
 import xyz.chrismiller.crochetti.data.local.entity.PatternWithComponentsAndRows
-import xyz.chrismiller.crochetti.data.local.entity.PatternWithProgress
 
 @Dao
 interface PatternDao {
@@ -33,10 +32,6 @@ interface PatternDao {
     @Transaction
     @Query("SELECT * FROM patterns WHERE id = :id")
     fun getPatternWithComponentsAndRowsFlow(id: Long): Flow<PatternWithComponentsAndRows?>
-
-    @Transaction
-    @Query("SELECT * FROM patterns ORDER BY updatedAt DESC")
-    fun getAllPatternsWithProgress(): Flow<List<PatternWithProgress>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPattern(pattern: PatternEntity): Long

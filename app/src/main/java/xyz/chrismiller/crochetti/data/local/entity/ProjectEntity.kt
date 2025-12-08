@@ -6,7 +6,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
-    tableName = "progress",
+    tableName = "projects",
     foreignKeys = [
         ForeignKey(
             entity = PatternEntity::class,
@@ -17,12 +17,17 @@ import androidx.room.PrimaryKey
     ],
     indices = [Index("patternId")]
 )
-data class ProgressEntity(
-    @PrimaryKey
+data class ProjectEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
     val patternId: Long,
+    val name: String,
+    val status: String = "active", // "active" | "completed" | "paused"
     val currentComponentId: Long? = null,
     val currentRowIndex: Int = 0,
     val currentStitchCount: Int = 0,
-    val completedRowIdsJson: String = "[]", // JSON array of Long
-    val lastUpdated: Long = System.currentTimeMillis()
+    val completedRowIdsJson: String = "[]",
+    val createdAt: Long = System.currentTimeMillis(),
+    val lastUpdated: Long = System.currentTimeMillis(),
+    val completedAt: Long? = null
 )

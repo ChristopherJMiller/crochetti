@@ -1,5 +1,6 @@
 package xyz.chrismiller.crochetti.ui.screen.patternlist
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,9 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -24,7 +25,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -37,21 +37,26 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PatternListScreen(
-    onPatternClick: (Long) -> Unit,
+    onPatternClick: (patternId: Long, projectCount: Int) -> Unit,
     onCreateClick: () -> Unit,
+    onProjectClick: (projectId: Long) -> Unit,
     viewModel: PatternListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     // Show error snackbar
     LaunchedEffect(uiState.error) {
@@ -106,7 +111,19 @@ fun PatternListScreen(
                 else -> {
                     PatternList(
                         patterns = uiState.patterns,
-                        onPatternClick = onPatternClick,
+                        onPatternClick = { item ->
+                            val totalProjects = item.activeProjectCount + item.completedProjectCount
+                            if (totalProjects == 0) {
+                                // Auto-create project and navigate to it
+                                scope.launch {
+                                    val projectId = viewModel.getOrCreateProjectForPattern(item.pattern.id)
+                                    onProjectClick(projectId)
+                                }
+                            } else {
+                                // Navigate to project list
+                                onPatternClick(item.pattern.id, totalProjects)
+                            }
+                        },
                         onDeleteClick = { viewModel.deletePattern(it) }
                     )
                 }
@@ -141,7 +158,7 @@ private fun EmptyState(
 @Composable
 private fun PatternList(
     patterns: List<PatternListItem>,
-    onPatternClick: (Long) -> Unit,
+    onPatternClick: (PatternListItem) -> Unit,
     onDeleteClick: (Long) -> Unit
 ) {
     LazyColumn(
@@ -151,7 +168,7 @@ private fun PatternList(
         items(patterns, key = { it.pattern.id }) { item ->
             PatternCard(
                 item = item,
-                onClick = { onPatternClick(item.pattern.id) },
+                onClick = { onPatternClick(item) },
                 onDeleteClick = { onDeleteClick(item.pattern.id) }
             )
         }
@@ -211,44 +228,54 @@ private fun PatternCard(
                 )
             }
 
-            if (item.totalRows > 0) {
-                Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val progress = if (item.totalRows > 0) {
-                        item.completedRows.toFloat() / item.totalRows
-                    } else 0f
-
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(8.dp),
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+            // Project count badges
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (item.activeProjectCount > 0) {
+                    ProjectBadge(
+                        text = "${item.activeProjectCount} active",
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                }
+                if (item.completedProjectCount > 0) {
+                    ProjectBadge(
+                        text = "${item.completedProjectCount} completed",
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
+                if (item.activeProjectCount == 0 && item.completedProjectCount == 0) {
                     Text(
-                        text = "${item.completedRows}/${item.totalRows} rows",
+                        text = "No projects yet",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                // Show current position
-                item.progress?.let { progress ->
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Row ${progress.currentRowIndex + 1}" +
-                                if (progress.currentStitchCount > 0) {
-                                    " • Stitch ${progress.currentStitchCount}"
-                                } else "",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
             }
         }
+    }
+}
+
+@Composable
+private fun ProjectBadge(
+    text: String,
+    containerColor: androidx.compose.ui.graphics.Color,
+    contentColor: androidx.compose.ui.graphics.Color
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(containerColor)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = contentColor
+        )
     }
 }

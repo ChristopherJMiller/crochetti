@@ -1,4 +1,4 @@
-package xyz.chrismiller.crochetti.ui.screen.patternprogress
+package xyz.chrismiller.crochetti.ui.screen.projectprogress
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -26,13 +26,13 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -68,21 +68,17 @@ import xyz.chrismiller.crochetti.ui.components.StitchHelpBottomSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PatternProgressScreen(
-    patternId: Long,
+fun ProjectProgressScreen(
     onNavigateBack: () -> Unit,
-    onEditClick: () -> Unit,
-    viewModel: PatternProgressViewModel = hiltViewModel()
+    onEditClick: (Long) -> Unit,
+    viewModel: ProjectProgressViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showResetDialog by remember { mutableStateOf(false) }
+    var showCompleteDialog by remember { mutableStateOf(false) }
     var showStitchHelp by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    LaunchedEffect(patternId) {
-        viewModel.loadPattern(patternId)
-    }
 
     LaunchedEffect(uiState.error) {
         uiState.error?.let { error ->
@@ -114,6 +110,30 @@ fun PatternProgressScreen(
         )
     }
 
+    if (showCompleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showCompleteDialog = false },
+            title = { Text("Mark Project Complete?") },
+            text = { Text("This will mark this project as completed. You can start a new project from the same pattern anytime.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.markComplete()
+                        showCompleteDialog = false
+                        onNavigateBack()
+                    }
+                ) {
+                    Text("Complete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCompleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     // Stitch Help Bottom Sheet
     if (showStitchHelp) {
         val currentRowStitches = uiState.currentRow?.instructions
@@ -133,7 +153,7 @@ fun PatternProgressScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(uiState.pattern?.name ?: "Loading...") },
+                title = { Text(uiState.project?.name ?: uiState.pattern?.name ?: "Loading...") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -149,13 +169,19 @@ fun PatternProgressScreen(
                             contentDescription = "Stitch Guide"
                         )
                     }
+                    IconButton(onClick = { showCompleteDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Done,
+                            contentDescription = "Mark Complete"
+                        )
+                    }
                     IconButton(onClick = { showResetDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Reset Progress"
                         )
                     }
-                    IconButton(onClick = onEditClick) {
+                    IconButton(onClick = { uiState.pattern?.id?.let { onEditClick(it) } }) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Edit Pattern"
@@ -198,7 +224,7 @@ fun PatternProgressScreen(
 
 @Composable
 private fun ProgressContent(
-    uiState: PatternProgressUiState,
+    uiState: ProjectProgressUiState,
     onIncrementStitch: () -> Unit,
     onDecrementStitch: () -> Unit,
     onCompleteRow: () -> Unit,

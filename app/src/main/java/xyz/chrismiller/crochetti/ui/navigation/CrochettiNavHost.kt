@@ -10,7 +10,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import xyz.chrismiller.crochetti.ui.screen.patternedit.PatternEditScreen
 import xyz.chrismiller.crochetti.ui.screen.patternlist.PatternListScreen
-import xyz.chrismiller.crochetti.ui.screen.patternprogress.PatternProgressScreen
+import xyz.chrismiller.crochetti.ui.screen.projectlist.ProjectListScreen
+import xyz.chrismiller.crochetti.ui.screen.projectprogress.ProjectProgressScreen
 
 @Composable
 fun CrochettiNavHost(
@@ -26,11 +27,15 @@ fun CrochettiNavHost(
         // Pattern List (Home)
         composable(Screen.PatternList.route) {
             PatternListScreen(
-                onPatternClick = { patternId ->
-                    navController.navigate(Screen.PatternProgress.createRoute(patternId))
+                onPatternClick = { patternId, projectCount ->
+                    // If multiple projects exist, go to project list; otherwise handled by auto-create
+                    navController.navigate(Screen.ProjectList.createRoute(patternId))
                 },
                 onCreateClick = {
                     navController.navigate(Screen.PatternCreate.route)
+                },
+                onProjectClick = { projectId ->
+                    navController.navigate(Screen.ProjectProgress.createRoute(projectId))
                 }
             )
         }
@@ -42,7 +47,7 @@ fun CrochettiNavHost(
                 onNavigateBack = { navController.popBackStack() },
                 onPatternSaved = { patternId ->
                     navController.popBackStack()
-                    navController.navigate(Screen.PatternProgress.createRoute(patternId))
+                    navController.navigate(Screen.ProjectList.createRoute(patternId))
                 }
             )
         }
@@ -62,18 +67,36 @@ fun CrochettiNavHost(
             )
         }
 
-        // Pattern Progress (Counter)
+        // Project List for a Pattern
         composable(
-            route = Screen.PatternProgress.route,
+            route = Screen.ProjectList.route,
             arguments = listOf(
                 navArgument(Screen.PATTERN_ID_ARG) { type = NavType.LongType }
             )
         ) { backStackEntry ->
             val patternId = backStackEntry.arguments?.getLong(Screen.PATTERN_ID_ARG) ?: return@composable
-            PatternProgressScreen(
-                patternId = patternId,
+            ProjectListScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onEditClick = {
+                onProjectClick = { projectId ->
+                    navController.navigate(Screen.ProjectProgress.createRoute(projectId))
+                },
+                onEditPatternClick = {
+                    navController.navigate(Screen.PatternEdit.createRoute(patternId))
+                }
+            )
+        }
+
+        // Project Progress (Counter)
+        composable(
+            route = Screen.ProjectProgress.route,
+            arguments = listOf(
+                navArgument(Screen.PROJECT_ID_ARG) { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val projectId = backStackEntry.arguments?.getLong(Screen.PROJECT_ID_ARG) ?: return@composable
+            ProjectProgressScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onEditClick = { patternId ->
                     navController.navigate(Screen.PatternEdit.createRoute(patternId))
                 }
             )

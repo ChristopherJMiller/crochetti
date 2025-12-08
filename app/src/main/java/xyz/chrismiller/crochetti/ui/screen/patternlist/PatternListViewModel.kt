@@ -9,15 +9,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import xyz.chrismiller.crochetti.data.repository.PatternRepository
+import xyz.chrismiller.crochetti.data.repository.ProjectRepository
 import xyz.chrismiller.crochetti.domain.model.Pattern
-import xyz.chrismiller.crochetti.domain.model.Progress
 import javax.inject.Inject
 
 data class PatternListItem(
     val pattern: Pattern,
-    val progress: Progress?,
-    val totalRows: Int = 0,
-    val completedRows: Int = 0
+    val activeProjectCount: Int = 0,
+    val completedProjectCount: Int = 0,
+    val totalRows: Int = 0
 )
 
 data class PatternListUiState(
@@ -28,7 +28,8 @@ data class PatternListUiState(
 
 @HiltViewModel
 class PatternListViewModel @Inject constructor(
-    private val patternRepository: PatternRepository
+    private val patternRepository: PatternRepository,
+    private val projectRepository: ProjectRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PatternListUiState())
@@ -40,14 +41,14 @@ class PatternListViewModel @Inject constructor(
 
     private fun loadPatterns() {
         viewModelScope.launch {
-            patternRepository.getAllPatternsWithProgress()
-                .collect { patternsWithProgress ->
-                    val items = patternsWithProgress.map { (pattern, progress) ->
+            patternRepository.getAllPatternsWithProjectCounts()
+                .collect { patternsWithCounts ->
+                    val items = patternsWithCounts.map { patternWithCounts ->
                         PatternListItem(
-                            pattern = pattern,
-                            progress = progress,
-                            totalRows = pattern.totalRows,
-                            completedRows = progress?.completedRowIds?.size ?: 0
+                            pattern = patternWithCounts.pattern,
+                            activeProjectCount = patternWithCounts.activeProjectCount,
+                            completedProjectCount = patternWithCounts.completedProjectCount,
+                            totalRows = patternWithCounts.pattern.totalRows
                         )
                     }
                     _uiState.update {
@@ -69,6 +70,15 @@ class PatternListViewModel @Inject constructor(
                     it.copy(error = "Failed to delete pattern: ${e.message}")
                 }
             }
+        }
+    }
+
+    suspend fun getOrCreateProjectForPattern(patternId: Long): Long {
+        val existingProjects = projectRepository.getProjectsForPatternSync(patternId)
+        return if (existingProjects.isEmpty()) {
+            projectRepository.createProject(patternId)
+        } else {
+            existingProjects.first().id
         }
     }
 

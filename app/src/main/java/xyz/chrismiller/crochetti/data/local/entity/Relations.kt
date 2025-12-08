@@ -41,15 +41,27 @@ data class PatternWithComponentsAndRows(
 )
 
 /**
- * Pattern with its progress.
+ * Pattern with all its projects.
  */
-data class PatternWithProgress(
+data class PatternWithProjects(
     @Embedded val pattern: PatternEntity,
     @Relation(
         parentColumn = "id",
         entityColumn = "patternId"
     )
-    val progress: ProgressEntity?
+    val projects: List<ProjectEntity>
+)
+
+/**
+ * Project with its pattern.
+ */
+data class ProjectWithPattern(
+    @Embedded val project: ProjectEntity,
+    @Relation(
+        parentColumn = "patternId",
+        entityColumn = "id"
+    )
+    val pattern: PatternEntity
 )
 
 /**

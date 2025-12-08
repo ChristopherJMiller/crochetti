@@ -7,43 +7,48 @@ import kotlinx.serialization.json.Json
 import xyz.chrismiller.crochetti.data.local.dao.ComponentDao
 import xyz.chrismiller.crochetti.data.local.dao.CustomStitchDao
 import xyz.chrismiller.crochetti.data.local.dao.PatternDao
-import xyz.chrismiller.crochetti.data.local.dao.ProgressDao
+import xyz.chrismiller.crochetti.data.local.dao.ProjectDao
 import xyz.chrismiller.crochetti.data.local.dao.RowDao
 import xyz.chrismiller.crochetti.data.local.entity.ComponentEntity
 import xyz.chrismiller.crochetti.data.local.entity.CustomStitchEntity
 import xyz.chrismiller.crochetti.data.local.entity.PatternEntity
-import xyz.chrismiller.crochetti.data.local.entity.ProgressEntity
 import xyz.chrismiller.crochetti.data.local.entity.RowEntity
 import xyz.chrismiller.crochetti.domain.model.CustomStitchDefinition
 import xyz.chrismiller.crochetti.domain.model.Pattern
 import xyz.chrismiller.crochetti.domain.model.PatternComponent
 import xyz.chrismiller.crochetti.domain.model.PatternRow
-import xyz.chrismiller.crochetti.domain.model.Progress
 import xyz.chrismiller.crochetti.domain.model.Sided
 import xyz.chrismiller.crochetti.domain.model.StitchGroup
 import xyz.chrismiller.crochetti.domain.model.StitchInstruction
 import javax.inject.Inject
 import javax.inject.Singleton
 
+data class PatternWithProjectCounts(
+    val pattern: Pattern,
+    val activeProjectCount: Int,
+    val completedProjectCount: Int
+)
+
 @Singleton
 class PatternRepository @Inject constructor(
     private val patternDao: PatternDao,
     private val componentDao: ComponentDao,
     private val rowDao: RowDao,
-    private val progressDao: ProgressDao,
+    private val projectDao: ProjectDao,
     private val customStitchDao: CustomStitchDao
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
     /**
-     * Get all patterns with their progress info.
+     * Get all patterns with their project counts.
      */
-    fun getAllPatternsWithProgress(): Flow<List<Pair<Pattern, Progress?>>> {
-        return patternDao.getAllPatternsWithProgress().map { list ->
-            list.map { patternWithProgress ->
-                val pattern = patternWithProgress.pattern.toDomain()
-                val progress = patternWithProgress.progress?.toDomain()
-                pattern to progress
+    fun getAllPatternsWithProjectCounts(): Flow<List<PatternWithProjectCounts>> {
+        return projectDao.getAllPatternsWithProjects().map { list ->
+            list.map { patternWithProjects ->
+                val pattern = patternWithProjects.pattern.toDomain()
+                val activeCount = patternWithProjects.projects.count { it.status == "active" }
+                val completedCount = patternWithProjects.projects.count { it.status == "completed" }
+                PatternWithProjectCounts(pattern, activeCount, completedCount)
             }
         }
     }
@@ -182,19 +187,6 @@ class PatternRepository @Inject constructor(
             rowDao.insertRows(rowEntities)
         }
 
-        // Initialize progress if new pattern
-        if (pattern.id == 0L) {
-            val firstComponentId = componentDao.getComponentsForPattern(patternId)
-            progressDao.upsertProgress(
-                ProgressEntity(
-                    patternId = patternId,
-                    currentComponentId = null, // Will be set when components are loaded
-                    currentRowIndex = 0,
-                    currentStitchCount = 0
-                )
-            )
-        }
-
         return patternId
     }
 
@@ -233,23 +225,6 @@ class PatternRepository @Inject constructor(
             sided = Sided.fromString(sided),
             hasMagicRing = hasMagicRing,
             repeatCount = repeatCount
-        )
-    }
-
-    private fun ProgressEntity.toDomain(): Progress {
-        val completedIds: Set<Long> = try {
-            json.decodeFromString<List<Long>>(completedRowIdsJson).toSet()
-        } catch (e: Exception) {
-            emptySet()
-        }
-
-        return Progress(
-            patternId = patternId,
-            currentComponentId = currentComponentId,
-            currentRowIndex = currentRowIndex,
-            currentStitchCount = currentStitchCount,
-            completedRowIds = completedIds,
-            lastUpdated = lastUpdated
         )
     }
 
