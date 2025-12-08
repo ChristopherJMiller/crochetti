@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Simple yarn ball icon -->
+    <group android:translateX="27" android:translateY="27">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M27,27m-24,0a24,24 0,1 1,48 0a24,24 0,1 1,-48 0"/>
+        <!-- Yarn lines -->
+        <path
+            android:strokeColor="#5B8A8A"
+            android:strokeWidth="2"
+            android:pathData="M10,15 Q27,5 44,15"/>
+        <path
+            android:strokeColor="#5B8A8A"
+            android:strokeWidth="2"
+            android:pathData="M8,27 Q27,17 46,27"/>
+        <path
+            android:strokeColor="#5B8A8A"
+            android:strokeWidth="2"
+            android:pathData="M10,39 Q27,49 44,39"/>
+        <path
+            android:strokeColor="#D4A373"
+            android:strokeWidth="2"
+            android:pathData="M15,10 Q5,27 15,44"/>
+        <path
+            android:strokeColor="#D4A373"
+            android:strokeWidth="2"
+            android:pathData="M39,10 Q49,27 39,44"/>
+    </group>
+</vector>
