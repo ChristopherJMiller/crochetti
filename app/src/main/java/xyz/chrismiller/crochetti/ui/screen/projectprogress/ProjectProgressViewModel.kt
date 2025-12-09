@@ -20,6 +20,9 @@ import xyz.chrismiller.crochetti.domain.model.Pattern
 import xyz.chrismiller.crochetti.domain.model.PatternComponent
 import xyz.chrismiller.crochetti.domain.model.PatternRow
 import xyz.chrismiller.crochetti.domain.model.Project
+import xyz.chrismiller.crochetti.domain.model.AdjacentStitchInfo
+import xyz.chrismiller.crochetti.domain.model.StitchPosition
+import xyz.chrismiller.crochetti.domain.model.deriveStitchPosition
 import xyz.chrismiller.crochetti.ui.navigation.Screen
 import javax.inject.Inject
 
@@ -42,6 +45,35 @@ data class ProjectProgressUiState(
     val currentRow: PatternRow? get() = currentExpandedRow?.sourceRow
     val currentRowNumber: Int get() = currentVirtualRowIndex + 1
     val totalRowsInComponent: Int get() = totalVirtualRowsInComponent
+
+    // Derived stitch position for the indicator
+    val currentStitchPosition: StitchPosition?
+        get() = currentRow?.instructions?.let { instructions ->
+            deriveStitchPosition(currentStitchCount, instructions)
+        }
+
+    // First stitch info for when count is 0
+    val firstStitchInfo: AdjacentStitchInfo?
+        get() {
+            val instructions = currentRow?.instructions ?: return null
+            if (instructions.isEmpty()) return null
+            val firstGroup = instructions.first()
+            if (firstGroup.stitches.isEmpty()) return null
+
+            // Count consecutive first stitches
+            val firstStitch = firstGroup.stitches.first()
+            var count = 1
+            for (i in 1 until firstGroup.stitches.size) {
+                if (firstGroup.stitches[i] == firstStitch) count++ else break
+            }
+
+            return AdjacentStitchInfo(
+                stitch = firstStitch,
+                consecutiveCount = count,
+                isInRepeatingGroup = firstGroup.repetitions > 1,
+                groupRepetitions = firstGroup.repetitions
+            )
+        }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -160,13 +192,13 @@ class ProjectProgressViewModel @Inject constructor(
                 // Stay on last virtual row but mark complete
                 projectRepository.completeRowAndAdvance(
                     projectId,
-                    currentExpandedRow.sourceRow.id,
+                    currentExpandedRow.progressKey,
                     state.expandedRows.size - 1
                 )
             } else {
                 projectRepository.completeRowAndAdvance(
                     projectId,
-                    currentExpandedRow.sourceRow.id,
+                    currentExpandedRow.progressKey,
                     nextVirtualRowIndex
                 )
             }

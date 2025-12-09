@@ -78,20 +78,27 @@ class ProjectRepository @Inject constructor(
         projectDao.advanceToRow(projectId, rowIndex)
     }
 
-    suspend fun completeRowAndAdvance(projectId: Long, completedRowId: Long, nextRowIndex: Int) {
+    suspend fun completeRowAndAdvance(projectId: Long, progressKey: String, nextRowIndex: Int) {
         val current = projectDao.getProjectSync(projectId) ?: return
-        val completedIds: MutableSet<Long> = try {
-            json.decodeFromString<List<Long>>(current.completedRowIdsJson).toMutableSet()
+        val completedKeys: MutableSet<String> = try {
+            json.decodeFromString<List<String>>(current.completedRowIdsJson).toMutableSet()
         } catch (e: Exception) {
-            mutableSetOf()
+            // Handle migration from old Long format
+            try {
+                json.decodeFromString<List<Long>>(current.completedRowIdsJson)
+                    .map { "${it}_0" }  // Convert old format to new with _0 suffix
+                    .toMutableSet()
+            } catch (e2: Exception) {
+                mutableSetOf()
+            }
         }
-        completedIds.add(completedRowId)
+        completedKeys.add(progressKey)
 
         projectDao.upsertProject(
             current.copy(
                 currentRowIndex = nextRowIndex,
                 currentStitchCount = 0,
-                completedRowIdsJson = json.encodeToString(completedIds.toList()),
+                completedRowIdsJson = json.encodeToString(completedKeys.toList()),
                 lastUpdated = System.currentTimeMillis()
             )
         )
@@ -137,10 +144,17 @@ class ProjectRepository @Inject constructor(
     }
 
     private fun ProjectEntity.toDomain(): Project {
-        val completedIds: Set<Long> = try {
-            json.decodeFromString<List<Long>>(completedRowIdsJson).toSet()
+        val completedKeys: Set<String> = try {
+            json.decodeFromString<List<String>>(completedRowIdsJson).toSet()
         } catch (e: Exception) {
-            emptySet()
+            // Handle migration from old Long format
+            try {
+                json.decodeFromString<List<Long>>(completedRowIdsJson)
+                    .map { "${it}_0" }  // Convert old format to new with _0 suffix
+                    .toSet()
+            } catch (e2: Exception) {
+                emptySet()
+            }
         }
 
         return Project(
@@ -151,7 +165,7 @@ class ProjectRepository @Inject constructor(
             currentComponentId = currentComponentId,
             currentRowIndex = currentRowIndex,
             currentStitchCount = currentStitchCount,
-            completedRowIds = completedIds,
+            completedProgressKeys = completedKeys,
             createdAt = createdAt,
             lastUpdated = lastUpdated,
             completedAt = completedAt
@@ -167,7 +181,7 @@ class ProjectRepository @Inject constructor(
             currentComponentId = currentComponentId,
             currentRowIndex = currentRowIndex,
             currentStitchCount = currentStitchCount,
-            completedRowIdsJson = json.encodeToString(completedRowIds.toList()),
+            completedRowIdsJson = json.encodeToString(completedProgressKeys.toList()),
             createdAt = createdAt,
             lastUpdated = lastUpdated,
             completedAt = completedAt

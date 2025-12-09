@@ -56,12 +56,15 @@ class ProjectListViewModel @Inject constructor(
                 pattern to projects
             }.collect { (pattern, projects) ->
                 if (pattern != null) {
-                    val totalRows = pattern.totalRows
+                    // Use virtual rows (accounting for repeats) for accurate progress
+                    val totalVirtualRows = pattern.totalVirtualRows
                     val items = projects.map { project ->
+                        // Use current position (row index + 1) for progress
+                        val currentPosition = project.currentRowIndex + 1
                         ProjectListItem(
                             project = project,
-                            totalRows = totalRows,
-                            completedRows = project.completedRowIds.size
+                            totalRows = totalVirtualRows,
+                            completedRows = currentPosition.coerceAtMost(totalVirtualRows)
                         )
                     }
                     _uiState.update {

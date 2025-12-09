@@ -18,7 +18,7 @@ data class Project(
     val currentComponentId: Long? = null,
     val currentRowIndex: Int = 0,
     val currentStitchCount: Int = 0,
-    val completedRowIds: Set<Long> = emptySet(),
+    val completedProgressKeys: Set<String> = emptySet(),  // Format: "${rowId}_${repetitionIndex}"
     val createdAt: Long = System.currentTimeMillis(),
     val lastUpdated: Long = System.currentTimeMillis(),
     val completedAt: Long? = null
@@ -26,7 +26,7 @@ data class Project(
     val isActive: Boolean get() = status == ProjectStatus.ACTIVE
     val isCompleted: Boolean get() = status == ProjectStatus.COMPLETED
 
-    fun isRowCompleted(rowId: Long): Boolean = rowId in completedRowIds
+    fun isRowCompleted(progressKey: String): Boolean = progressKey in completedProgressKeys
 
     fun incrementStitch(): Project = copy(
         currentStitchCount = currentStitchCount + 1,
@@ -43,10 +43,10 @@ data class Project(
         lastUpdated = System.currentTimeMillis()
     )
 
-    fun completeRowAndAdvance(currentRowId: Long, nextRowIndex: Int): Project = copy(
+    fun completeRowAndAdvance(progressKey: String, nextRowIndex: Int): Project = copy(
         currentRowIndex = nextRowIndex,
         currentStitchCount = 0,
-        completedRowIds = completedRowIds + currentRowId,
+        completedProgressKeys = completedProgressKeys + progressKey,
         lastUpdated = System.currentTimeMillis()
     )
 
@@ -68,7 +68,7 @@ data class Project(
         currentComponentId = firstComponentId,
         currentRowIndex = 0,
         currentStitchCount = 0,
-        completedRowIds = emptySet(),
+        completedProgressKeys = emptySet(),
         completedAt = null,
         lastUpdated = System.currentTimeMillis()
     )

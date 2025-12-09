@@ -353,6 +353,13 @@ private fun ProgressContent(
             onDecrement = onDecrementStitch
         )
 
+        // Stitch position indicator
+        Spacer(modifier = Modifier.height(16.dp))
+        StitchPositionIndicator(
+            position = uiState.currentStitchPosition,
+            firstStitchInfo = uiState.firstStitchInfo
+        )
+
         Spacer(modifier = Modifier.weight(1f))
 
         // Row navigation
@@ -481,4 +488,141 @@ private fun CounterButton(
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center
     )
+}
+
+@Composable
+private fun StitchPositionIndicator(
+    position: xyz.chrismiller.crochetti.domain.model.StitchPosition?,
+    firstStitchInfo: xyz.chrismiller.crochetti.domain.model.AdjacentStitchInfo?,
+    modifier: Modifier = Modifier
+) {
+    // When count is 0, show the first stitch faded
+    if (position == null) {
+        if (firstStitchInfo != null) {
+            Column(
+                modifier = modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Next: ${formatStitchDisplay(firstStitchInfo.stitch, firstStitchInfo.consecutiveCount)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+        }
+        return
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Previous stitch (faded)
+            if (position.previousStitch != null) {
+                Text(
+                    text = formatStitchDisplay(
+                        position.previousStitch.stitch,
+                        position.previousStitch.consecutiveCount
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(end = 16.dp)
+                )
+            } else {
+                Spacer(modifier = Modifier.width(48.dp))
+            }
+
+            // Current stitch (highlighted)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Stitch name with position if consecutive
+                        if (position.isInConsecutiveRun) {
+                            Text(
+                                text = "${position.currentStitch.abbreviation} ${position.positionInConsecutive}/${position.consecutiveCount}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        } else {
+                            Text(
+                                text = position.currentStitch.abbreviation,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+
+                        // Sub-stitch dots for multi-count stitches (like inc)
+                        if (position.hasMultipleSubStitches) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                repeat(position.totalSubStitches) { index ->
+                                    val isFilled = index < position.subStitchProgress
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (isFilled) MaterialTheme.colorScheme.primary
+                                                else MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Group repetition indicator
+                if (position.isInRepeatingGroup) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "x${position.groupRepetition}/${position.totalGroupRepetitions}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // Next stitch (faded)
+            if (position.nextStitch != null) {
+                Text(
+                    text = formatStitchDisplay(
+                        position.nextStitch.stitch,
+                        position.nextStitch.consecutiveCount
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(start = 16.dp)
+                )
+            } else {
+                Spacer(modifier = Modifier.width(48.dp))
+            }
+        }
+    }
+}
+
+private fun formatStitchDisplay(stitch: xyz.chrismiller.crochetti.domain.model.Stitch, count: Int): String {
+    return if (count > 1) {
+        "${stitch.abbreviation} $count"
+    } else {
+        stitch.abbreviation
+    }
 }

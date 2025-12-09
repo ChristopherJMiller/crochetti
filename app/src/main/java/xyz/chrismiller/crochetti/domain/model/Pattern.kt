@@ -14,9 +14,14 @@ data class Pattern(
     val updatedAt: Long = System.currentTimeMillis()
 ) {
     /**
-     * Total number of rows across all components.
+     * Total number of stored rows across all components (not counting repeats).
      */
     val totalRows: Int get() = components.sumOf { it.totalRows }
+
+    /**
+     * Total number of virtual rows across all components (accounting for repeats).
+     */
+    val totalVirtualRows: Int get() = components.sumOf { it.totalVirtualRows }
 
     /**
      * Get a flat list of all rows with their component context.
