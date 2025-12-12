@@ -1,0 +1,10 @@
+title: Crochetti
+description: A crochet pattern tracking app for Android
+baseurl: /crochetti
+url: https://christopherjmiller.github.io
+
+theme: minima
+
+# Exclude from processing
+exclude:
+  - README.md
