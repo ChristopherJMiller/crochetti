@@ -51,6 +51,7 @@
 
             # Useful dev tools
             ktlint
+            openssl
           ];
 
           ANDROID_HOME = "${androidSdk}/libexec/android-sdk";

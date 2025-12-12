@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -7,6 +9,10 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// CalVer versioning: Read from environment or use defaults
+val versionNameFromEnv: String = System.getenv("VERSION_NAME") ?: "2025.1.0"
+val versionCodeFromEnv: Int = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
+
 android {
     namespace = "xyz.chrismiller.crochetti"
     compileSdk = 35
@@ -15,8 +21,8 @@ android {
         applicationId = "xyz.chrismiller.crochetti"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = versionCodeFromEnv
+        versionName = versionNameFromEnv
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -26,7 +32,26 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            val keystoreBase64 = System.getenv("KEYSTORE_BASE64")
+            if (keystoreBase64 != null) {
+                val keystoreFile = File.createTempFile("keystore", ".jks")
+                keystoreFile.deleteOnExit()
+                keystoreFile.writeBytes(Base64.getDecoder().decode(keystoreBase64))
+
+                storeFile = keystoreFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -34,6 +59,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
+            val releaseSigningConfig = signingConfigs.findByName("release")
+            if (releaseSigningConfig?.storeFile != null) {
+                signingConfig = releaseSigningConfig
+            }
         }
     }
 

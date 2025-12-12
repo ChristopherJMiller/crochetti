@@ -120,6 +120,7 @@ fun CrochettiNavHost(
             val scope = rememberCoroutineScope()
             QrScannerScreen(
                 decodePatternQrUseCase = decodePatternQrUseCase,
+                patternRepository = patternRepository,
                 onPatternImported = { pattern ->
                     scope.launch {
                         // Save the imported pattern

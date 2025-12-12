@@ -35,3 +35,9 @@ app/schemas/
 
 # Old Tauri project
 old/
+
+# Signing
+*.keystore
+*.jks
+key.properties
+play-store-credentials.json

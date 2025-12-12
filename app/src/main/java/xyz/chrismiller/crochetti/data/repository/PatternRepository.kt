@@ -54,6 +54,11 @@ class PatternRepository @Inject constructor(
     }
 
     /**
+     * Get all pattern names (for duplicate checking during import).
+     */
+    suspend fun getAllPatternNames(): List<String> = patternDao.getAllPatternNames()
+
+    /**
      * Get a complete pattern with all components, rows, and custom stitches.
      */
     suspend fun getPatternWithDetails(patternId: Long): Pattern? {

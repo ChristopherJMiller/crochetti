@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Original crochet hook icon -->
+    <group
+        android:translateX="-20"
+        android:translateY="10"
+        android:scaleX="5"
+        android:scaleY="5">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M4.2,24 L13.6,7.5 C14.3,6.5 15,5.6 16.4,5.6 C17.8,5.6 18.7,6.5 18.7,8 C18.7,8.7 18.3,9.4 17.3,9.8 L15.9,10.5 L16.9,9.1 C17.1,8.6 17.3,7.9 16.6,7.7 C15.9,7.4 15.5,8.4 15,9.1 L7.5,24 Z" />
+    </group>
+
+    <!-- DEBUG ribbon - orange diagonal banner in top-right -->
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M58,0 L108,0 L108,50 Z" />
+
+    <!-- "D" letter on ribbon -->
+    <group
+        android:pivotX="88"
+        android:pivotY="20"
+        android:rotation="-45">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M82,14 L82,26 L87,26 Q94,26 94,20 Q94,14 87,14 Z M85,17 L86.5,17 Q91,17 91,20 Q91,23 86.5,23 L85,23 Z" />
+    </group>
+</vector>

@@ -21,6 +21,9 @@ interface PatternDao {
     @Query("SELECT * FROM patterns WHERE id = :id")
     suspend fun getPatternById(id: Long): PatternEntity?
 
+    @Query("SELECT name FROM patterns")
+    suspend fun getAllPatternNames(): List<String>
+
     @Transaction
     @Query("SELECT * FROM patterns WHERE id = :id")
     suspend fun getPatternWithComponents(id: Long): PatternWithComponents?

@@ -14,9 +14,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -25,15 +30,37 @@ import xyz.chrismiller.crochetti.domain.model.Pattern
 import xyz.chrismiller.crochetti.domain.model.transfer.PatternTransfer
 import xyz.chrismiller.crochetti.domain.model.transfer.toPattern
 
+/**
+ * Generates a unique name by appending a numeric suffix if needed.
+ * "Pattern" -> "Pattern (2)" -> "Pattern (3)", etc.
+ */
+private fun generateUniqueName(baseName: String, existingNames: Set<String>): String {
+    if (baseName !in existingNames) return baseName
+
+    // Strip existing suffix like " (2)" to avoid "Pattern (2) (3)"
+    val suffixRegex = """\s*\(\d+\)\s*$""".toRegex()
+    val cleanBase = baseName.replace(suffixRegex, "").trim()
+
+    var counter = 2
+    while ("$cleanBase ($counter)" in existingNames) counter++
+    return "$cleanBase ($counter)"
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImportPreviewBottomSheet(
     patternTransfer: PatternTransfer,
+    existingNames: Set<String>,
     onImport: (Pattern) -> Unit,
     onDismiss: () -> Unit,
     sheetState: SheetState,
     modifier: Modifier = Modifier
 ) {
+    // Editable pattern name with auto-suggested unique name
+    var editedName by remember {
+        mutableStateOf(generateUniqueName(patternTransfer.name, existingNames))
+    }
+
     // Calculate statistics from transfer data
     val totalComponents = patternTransfer.components.size
     val totalRows = patternTransfer.components.sumOf { component ->
@@ -62,12 +89,13 @@ fun ImportPreviewBottomSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Pattern name
-            Text(
-                text = patternTransfer.name,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
+            // Editable pattern name
+            OutlinedTextField(
+                value = editedName,
+                onValueChange = { editedName = it },
+                label = { Text("Pattern Name") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
 
             // Description (if any)
@@ -127,9 +155,10 @@ fun ImportPreviewBottomSheet(
 
                 Button(
                     onClick = {
-                        val pattern = patternTransfer.toPattern()
+                        val pattern = patternTransfer.copy(name = editedName).toPattern()
                         onImport(pattern)
-                    }
+                    },
+                    enabled = editedName.isNotBlank()
                 ) {
                     Text("Import Pattern")
                 }

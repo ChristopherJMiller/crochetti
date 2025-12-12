@@ -63,6 +63,7 @@ import kotlinx.coroutines.launch
 import xyz.chrismiller.crochetti.data.transfer.QrError
 import xyz.chrismiller.crochetti.domain.model.Pattern
 import xyz.chrismiller.crochetti.domain.model.transfer.PatternTransfer
+import xyz.chrismiller.crochetti.data.repository.PatternRepository
 import xyz.chrismiller.crochetti.domain.usecase.DecodePatternQrUseCase
 import xyz.chrismiller.crochetti.ui.components.ImportPreviewBottomSheet
 import java.util.concurrent.Executors
@@ -71,6 +72,7 @@ import java.util.concurrent.Executors
 @Composable
 fun QrScannerScreen(
     decodePatternQrUseCase: DecodePatternQrUseCase,
+    patternRepository: PatternRepository,
     onPatternImported: (Pattern) -> Unit,
     onNavigateBack: () -> Unit
 ) {
@@ -81,6 +83,7 @@ fun QrScannerScreen(
 
     var hasCameraPermission by remember { mutableStateOf(false) }
     var scannedPattern by remember { mutableStateOf<PatternTransfer?>(null) }
+    var existingPatternNames by remember { mutableStateOf<Set<String>>(emptySet()) }
     var isScanning by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -148,7 +151,10 @@ fun QrScannerScreen(
                             isScanning = false
                             decodePatternQrUseCase(rawValue)
                                 .onSuccess { transfer ->
-                                    scannedPattern = transfer
+                                    scope.launch {
+                                        existingPatternNames = patternRepository.getAllPatternNames().toSet()
+                                        scannedPattern = transfer
+                                    }
                                 }
                                 .onFailure { e ->
                                     errorMessage = when (e) {
@@ -173,6 +179,7 @@ fun QrScannerScreen(
     if (scannedPattern != null) {
         ImportPreviewBottomSheet(
             patternTransfer = scannedPattern!!,
+            existingNames = existingPatternNames,
             onImport = { pattern ->
                 scannedPattern = null
                 onPatternImported(pattern)
