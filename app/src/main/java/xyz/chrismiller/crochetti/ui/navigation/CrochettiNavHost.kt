@@ -1,20 +1,29 @@
 package xyz.chrismiller.crochetti.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.launch
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import xyz.chrismiller.crochetti.data.repository.PatternRepository
+import xyz.chrismiller.crochetti.domain.usecase.DecodePatternQrUseCase
+import xyz.chrismiller.crochetti.domain.usecase.EncodePatternQrUseCase
 import xyz.chrismiller.crochetti.ui.screen.patternedit.PatternEditScreen
 import xyz.chrismiller.crochetti.ui.screen.patternlist.PatternListScreen
 import xyz.chrismiller.crochetti.ui.screen.projectlist.ProjectListScreen
 import xyz.chrismiller.crochetti.ui.screen.projectprogress.ProjectProgressScreen
+import xyz.chrismiller.crochetti.ui.screen.qrscanner.QrScannerScreen
 
 @Composable
 fun CrochettiNavHost(
+    encodePatternQrUseCase: EncodePatternQrUseCase,
+    decodePatternQrUseCase: DecodePatternQrUseCase,
+    patternRepository: PatternRepository,
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
     startDestination: String = Screen.PatternList.route
@@ -36,6 +45,9 @@ fun CrochettiNavHost(
                 },
                 onProjectClick = { projectId ->
                     navController.navigate(Screen.ProjectProgress.createRoute(projectId))
+                },
+                onScanClick = {
+                    navController.navigate(Screen.QrScanner.route)
                 }
             )
         }
@@ -82,7 +94,8 @@ fun CrochettiNavHost(
                 },
                 onEditPatternClick = {
                     navController.navigate(Screen.PatternEdit.createRoute(patternId))
-                }
+                },
+                encodePatternQrUseCase = encodePatternQrUseCase
             )
         }
 
@@ -99,6 +112,24 @@ fun CrochettiNavHost(
                 onEditClick = { patternId ->
                     navController.navigate(Screen.PatternEdit.createRoute(patternId))
                 }
+            )
+        }
+
+        // QR Scanner (Import Pattern)
+        composable(Screen.QrScanner.route) {
+            val scope = rememberCoroutineScope()
+            QrScannerScreen(
+                decodePatternQrUseCase = decodePatternQrUseCase,
+                onPatternImported = { pattern ->
+                    scope.launch {
+                        // Save the imported pattern
+                        val patternId = patternRepository.savePattern(pattern)
+                        // Navigate back and then to the project list for the new pattern
+                        navController.popBackStack()
+                        navController.navigate(Screen.ProjectList.createRoute(patternId))
+                    }
+                },
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

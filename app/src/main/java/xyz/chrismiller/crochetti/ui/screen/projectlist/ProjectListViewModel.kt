@@ -26,9 +26,11 @@ data class ProjectListItem(
 data class ProjectListUiState(
     val patternId: Long = 0,
     val patternName: String = "",
+    val pattern: Pattern? = null,
     val projects: List<ProjectListItem> = emptyList(),
     val isLoading: Boolean = true,
-    val error: String? = null
+    val error: String? = null,
+    val showShareSheet: Boolean = false
 )
 
 @HiltViewModel
@@ -70,6 +72,7 @@ class ProjectListViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             patternName = pattern.name,
+                            pattern = pattern,
                             projects = items,
                             isLoading = false
                         )
@@ -117,5 +120,13 @@ class ProjectListViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    fun showShareSheet() {
+        _uiState.update { it.copy(showShareSheet = true) }
+    }
+
+    fun hideShareSheet() {
+        _uiState.update { it.copy(showShareSheet = false) }
     }
 }

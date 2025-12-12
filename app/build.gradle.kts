@@ -84,8 +84,18 @@ dependencies {
     // Image loading
     implementation(libs.coil.compose)
 
+    // QR Code
+    implementation(libs.zxing.core)
+    implementation(libs.mlkit.barcode.scanning)
+    implementation(libs.camerax.core)
+    implementation(libs.camerax.camera2)
+    implementation(libs.camerax.lifecycle)
+    implementation(libs.camerax.view)
+
     // Testing
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.kotlinx.serialization.json)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

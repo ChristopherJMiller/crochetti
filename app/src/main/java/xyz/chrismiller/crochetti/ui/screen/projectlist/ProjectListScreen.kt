@@ -22,6 +22,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material3.rememberModalBottomSheetState
+import xyz.chrismiller.crochetti.domain.usecase.EncodePatternQrUseCase
+import xyz.chrismiller.crochetti.ui.components.SharePatternBottomSheet
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -59,10 +63,12 @@ fun ProjectListScreen(
     onNavigateBack: () -> Unit,
     onProjectClick: (Long) -> Unit,
     onEditPatternClick: () -> Unit,
+    encodePatternQrUseCase: EncodePatternQrUseCase,
     viewModel: ProjectListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val shareSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(uiState.error) {
         uiState.error?.let { error ->
@@ -90,6 +96,12 @@ fun ProjectListScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { viewModel.showShareSheet() }) {
+                        Icon(
+                            imageVector = Icons.Default.QrCode2,
+                            contentDescription = "Share Pattern"
+                        )
+                    }
                     IconButton(onClick = onEditPatternClick) {
                         Icon(
                             imageVector = Icons.Default.Edit,
@@ -144,6 +156,22 @@ fun ProjectListScreen(
                 }
             }
         }
+    }
+
+    // Share Pattern Bottom Sheet
+    val patternToShare = uiState.pattern
+    if (uiState.showShareSheet && patternToShare != null) {
+        SharePatternBottomSheet(
+            pattern = patternToShare,
+            encodePatternQrUseCase = encodePatternQrUseCase,
+            onDismiss = { viewModel.hideShareSheet() },
+            sheetState = shareSheetState,
+            onShowSnackbar = { message ->
+                viewModel.hideShareSheet()
+                // Show snackbar via launched effect
+                viewModel.clearError() // Clear any existing error first
+            }
+        )
     }
 }
 

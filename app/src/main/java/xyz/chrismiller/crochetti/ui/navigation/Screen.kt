@@ -16,6 +16,8 @@ sealed class Screen(val route: String) {
         fun createRoute(projectId: Long) = "projects/$projectId/progress"
     }
 
+    data object QrScanner : Screen("qr_scanner")
+
     companion object {
         const val PATTERN_ID_ARG = "patternId"
         const val PROJECT_ID_ARG = "projectId"

@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -52,6 +54,7 @@ fun PatternListScreen(
     onPatternClick: (patternId: Long, projectCount: Int) -> Unit,
     onCreateClick: () -> Unit,
     onProjectClick: (projectId: Long) -> Unit,
+    onScanClick: () -> Unit,
     viewModel: PatternListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -79,14 +82,32 @@ fun PatternListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onCreateClick,
-                containerColor = MaterialTheme.colorScheme.primary
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Create Pattern"
-                )
+                // Scan FAB (secondary)
+                SmallFloatingActionButton(
+                    onClick = onScanClick,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.QrCodeScanner,
+                        contentDescription = "Scan Pattern QR"
+                    )
+                }
+
+                // Create FAB (primary)
+                FloatingActionButton(
+                    onClick = onCreateClick,
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Create Pattern"
+                    )
+                }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
