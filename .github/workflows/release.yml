@@ -2,12 +2,15 @@ name: Release to Google Play
 
 on:
   push:
+    branches:
+      - main
     tags:
       - '*.*.*'
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: Checkout code
@@ -16,12 +19,12 @@ jobs:
       - name: Validate tag format
         id: version
         run: |
-          TAG=${GITHUB_REF#refs/tags/v}
+          TAG=${GITHUB_REF#refs/tags/}
           echo "Tag: $TAG"
 
           # Validate CalVer format: YYYY.MM.PATCH
           if [[ ! $TAG =~ ^[0-9]{4}\.[0-9]{1,2}\.[0-9]+$ ]]; then
-            echo "Error: Tag must be in CalVer format: vYYYY.MM.PATCH (e.g., v2025.12.1)"
+            echo "Error: Tag must be in CalVer format: YYYY.MM.PATCH (e.g., 2025.12.1)"
             exit 1
           fi
 
@@ -42,7 +45,7 @@ jobs:
             exit 1
           fi
 
-          # Calculate versionCode: YYYYMMPATCH (e.g., 2025121 for v2025.12.1)
+          # Calculate versionCode: YYYYMMPATCH (e.g., 2025121 for 2025.12.1)
           VERSION_CODE="${YEAR}$(printf '%02d' $MONTH)${PATCH}"
 
           echo "VERSION_NAME=$TAG" >> $GITHUB_OUTPUT
