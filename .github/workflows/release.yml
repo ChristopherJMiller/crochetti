@@ -3,7 +3,7 @@ name: Release to Google Play
 on:
   push:
     tags:
-      - 'v*'
+      - '*.*.*'
 
 jobs:
   release:
