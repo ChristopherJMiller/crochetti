@@ -41,3 +41,7 @@ old/
 *.jks
 key.properties
 play-store-credentials.json
+
+# Claude Code (local, per-machine)
+CLAUDE.md
+.claude/settings.local.json
