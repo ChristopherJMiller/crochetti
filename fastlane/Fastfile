@@ -1,0 +1,35 @@
+default_platform(:android)
+
+platform :android do
+  # Promote an already-reviewed bundle from the internal track to production
+  # with a staged rollout. Does NOT re-upload the AAB — it reassigns the
+  # existing versionCode to production via the Play "edits" API, which is the
+  # correct way to promote (re-uploading a duplicate versionCode is rejected).
+  #
+  # Usage (from promote.yml):
+  #   bundle exec fastlane android promote version_code:2025124 rollout:0.2
+  desc "Promote an internal-track release to production with staged rollout"
+  lane :promote do |options|
+    version_code = options[:version_code]
+    UI.user_error!("version_code is required") unless version_code
+
+    rollout = (options[:rollout] || "0.2").to_s
+    status = rollout.to_f >= 1.0 ? "completed" : "inProgress"
+
+    upload_to_play_store(
+      package_name: "xyz.chrismiller.crochetti",
+      track: "internal",
+      track_promote_to: "production",
+      version_code: version_code.to_i,
+      release_status: status,
+      rollout: rollout,
+      skip_upload_aab: true,
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: true,
+      json_key_data: ENV["PLAY_STORE_JSON_KEY"]
+    )
+  end
+end

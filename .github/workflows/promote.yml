@@ -1,0 +1,55 @@
+name: Promote to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Released CalVer tag to promote (e.g. 2025.12.4)'
+        required: true
+      rollout:
+        description: 'Staged rollout fraction (0.0-1.0). Use 1.0 for full release.'
+        required: true
+        default: '0.2'
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    # Requires a "production" environment with required reviewers configured in
+    # repo Settings -> Environments. That approval gate is the human check
+    # before anything reaches production.
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Compute version code
+        id: vc
+        run: |
+          TAG="${{ inputs.version }}"
+          if [[ ! $TAG =~ ^[0-9]{4}\.[0-9]{1,2}\.[0-9]+$ ]]; then
+            echo "Error: version must be CalVer YYYY.MM.PATCH (e.g. 2025.12.4)"
+            exit 1
+          fi
+          YEAR=$(echo $TAG | cut -d. -f1)
+          MONTH=$(echo $TAG | cut -d. -f2)
+          PATCH=$(echo $TAG | cut -d. -f3)
+          VERSION_CODE="${YEAR}$(printf '%02d' $MONTH)${PATCH}"
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "Promoting $TAG (versionCode $VERSION_CODE) at rollout ${{ inputs.rollout }}"
+
+      - name: Set up Ruby + fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Promote internal -> production
+        env:
+          PLAY_STORE_JSON_KEY: ${{ secrets.PLAY_STORE_JSON_KEY }}
+        run: |
+          bundle exec fastlane android promote \
+            version_code:${{ steps.vc.outputs.version_code }} \
+            rollout:${{ inputs.rollout }}
